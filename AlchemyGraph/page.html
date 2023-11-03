@@ -93,8 +93,8 @@
                 }
             }
 
-            // createArtistsNetwork("6jJ0s89eD6GaHleKKya26X").then(t => {
-            //     localStorage.setItem('network_data', JSON.stringify(t));
+            createArtistsNetwork("3tlXnStJ1fFhdScmQeLpuG").then(t => {
+                localStorage.setItem('network_data', JSON.stringify(t));
             //     alchemy = new Alchemy({
             //         nodeTypes:{"cluster": [0,1,2]},
             //         nodeStyle: {
@@ -110,25 +110,30 @@
             //         },
             //         dataSource: t
             //     })
-            // })
+            })
             alchemy = new Alchemy({
-                nodeTypes:{"depth": [0,1,2]},
+                nodeTypes:{"depth": [0,1,2,3,4]},
                 nodeCaption: "name",
                 nodeStyle: {
                     0: {
-                        "color": "#ffbe0b"
+                        "color": "#ffbe0b",
+                        "radius": 20
                     },
                     1: {
-                        "color": "#fb5607"
+                        "color": "#fb5607",
+                        "radius": 15
                     },
                     2: {
-                        "color": "#ff006e"
+                        "color": "#ff006e",
+                        "radius": 10
                     },
                     3: {
-                        "color": "#8338ec"
+                        "color": "#8338ec",
+                        "radius": 7
                     },
                     4: {
-                        "color": "#3a86ff"
+                        "color": "#3a86ff",
+                        "radius": 5
                     }
                 },
                 dataSource: 'data/artist_network.json',
