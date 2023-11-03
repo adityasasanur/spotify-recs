@@ -1,0 +1,151 @@
+<html>
+<head>
+    <link rel="stylesheet" type="text/css" href="0.4.1/styles/vendor.css">
+    <link rel="stylesheet" href="0.4.1/alchemy.css">
+</head>
+<body>
+    <script type="text/javascript" src="0.4.1/scripts/vendor.js"></script>
+    <script type="text/javascript" src="0.4.1/alchemy.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <div>
+        Data Viz Project
+    </div>
+    <div class="alchemy" id="alchemy"></div>
+        <script type="text/javascript">
+
+            const cid = "84ffbde9b5764c61b02a9cfd5f686a0f";
+            const secret = "cd3e066799c547f391387ed5e42eca20";
+            const tokenUrl = 'https://accounts.spotify.com/api/token';
+            const apiUrl = 'https://api.spotify.com/v1';
+
+            async function getToken() {
+                const credentials = `${cid}:${secret}`;
+                const base64Credentials = btoa(credentials); // Use btoa for base64 encoding
+
+                const config = {
+                    headers: {
+                        'Authorization': `Basic ${base64Credentials}`,
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                };
+
+                const data = 'grant_type=client_credentials';
+
+                const response = await axios.post(tokenUrl, data, config);
+                return response.data.access_token;
+            }
+
+            async function createArtistsNetwork(id) {
+                const token = await getToken();
+                const config = {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                    },
+                };
+
+                const artistsNetwork = {};
+                const artists = new Set();
+                const edges = new Set();
+                const node_obj = [];
+                const edge_obj = [];
+                const connectionDegree = {};
+
+                const artist0Response = await axios.get(`${apiUrl}/artists/${id}`, config);
+                const artist0 = artist0Response.data;
+
+                artistsNetwork.id = artist0.id;
+                artistsNetwork.name = artist0.name;
+                artistsNetwork.genres = artist0.genres;
+                artistsNetwork.popularity = artist0.popularity;
+                artistsNetwork.related_artists = {};
+
+                artists.add(artist0.name);
+                node_obj.push({
+                    "id": artist0.id,
+                    "caption": artist0.name
+                })
+                connectionDegree[artist0.name] = 0;
+
+                const artists1Response = await axios.get(`${apiUrl}/artists/${id}/related-artists`, config);
+                const artists1 = artists1Response.data;
+
+                for (let i = 0; i < 20; i++) {
+                    artistsNetwork.related_artists[i] = {};
+                    artistsNetwork.related_artists[i].id = artists1.artists[i].id;
+                    artistsNetwork.related_artists[i].name = artists1.artists[i].name;
+                    artistsNetwork.related_artists[i].genres = artists1.artists[i].genres;
+                    artistsNetwork.related_artists[i].popularity = artists1.artists[i].popularity;
+
+                    const artists2Response = await axios.get(`${apiUrl}/artists/${artists1.artists[i].id}/related-artists`, config);
+                    const artists2 = artists2Response.data;
+                    artistsNetwork.related_artists[i].related_artists = {};
+
+                    if (!artists.has(artists1.artists[i].name)) {
+                        artists.add(artists1.artists[i].name);
+                        node_obj.push({
+                            "id": artists1.artists[i].id,
+                            "caption": artists1.artists[i].name
+                        })
+                        source_target = [artist0.id, artists1.artists[i].id].sort()
+                        edge_obj.push({
+                            "source": source_target[0],
+                            "target": source_target[1]
+                        })
+                    }
+
+                    for (let j = 0; j < 19; j++) {
+                        artistsNetwork.related_artists[i].related_artists[j] = {};
+                        artistsNetwork.related_artists[i].related_artists[j].id = artists2.artists[j].id;
+                        artistsNetwork.related_artists[i].related_artists[j].name = artists2.artists[j].name;
+                        artistsNetwork.related_artists[i].related_artists[j].genres = artists2.artists[j].genres;
+                        artistsNetwork.related_artists[i].related_artists[j].popularity = artists2.artists[j].popularity;
+
+                        if (!artists.has(artists2.artists[j].name)) {
+                            artists.add(artists2.artists[j].name);
+                            node_obj.push({
+                                "id": artists2.artists[j].id,
+                                "caption": artists2.artists[j].name
+                            })
+                            source_target = [artists1.artists[i].id, artists2.artists[j].id].sort()
+                            edge_obj.push({
+                                "source": source_target[0],
+                                "target": source_target[1]
+                            })
+                        }
+
+                    }
+                }
+                return {
+                    "nodes": node_obj,
+                    "edges": edge_obj
+                }
+            }
+
+            createArtistsNetwork("6jJ0s89eD6GaHleKKya26X").then(t => {
+                localStorage.setItem('network_data', JSON.stringify(t));
+                alchemy = new Alchemy({
+                    zoomControls: true,
+                    dataSource: t
+                })
+                // const retrievedData = JSON.parse(localStorage.getItem('network_data'));
+                // console.log(retrievedData)
+            })
+
+            alchemy = new Alchemy({
+                dataSource: "data/charlize.json",
+                // graphHeight: function(){return 500},
+                initialZoom: 200,
+                // showEditor: true,
+                // dataSource: JSON.parse(localStorage.getItem('network_data'))
+            })
+            // var config = {
+            //     dataSource: 'data/charlize.json',
+            // };
+
+            
+        </script>
+    <div>
+        Part 2
+    </div>
+  </body>
+</html>
