@@ -1,4 +1,4 @@
-<html>
+<!DOCTYPE html>
 <head>
     <link rel="stylesheet" type="text/css" href="0.4.1/styles/vendor.css">
     <link rel="stylesheet" href="0.4.1/alchemy.css">
@@ -43,109 +43,100 @@
                     },
                 };
 
-                const artistsNetwork = {};
-                const artists = new Set();
-                const edges = new Set();
-                const node_obj = [];
-                const edge_obj = [];
-                const connectionDegree = {};
+                const nodes = [];
+                const nodes_set = new Set();
+                const edges = [];
+                const edges_set = new Set();
+                
+                const initialArtistResponse = await axios.get(`${apiUrl}/artists/${id}`, config);
+                const prevArtist = initialArtistResponse.data;
+                const artistQueueResponse = await axios.get(`${apiUrl}/artists/${id}/related-artists`, config);
+                const artist_data = artistQueueResponse.data.artists;
+                let artist_queue = artist_data.map(artist => [prevArtist.id, artist]);
 
-                const artist0Response = await axios.get(`${apiUrl}/artists/${id}`, config);
-                const artist0 = artist0Response.data;
-
-                artistsNetwork.id = artist0.id;
-                artistsNetwork.name = artist0.name;
-                artistsNetwork.genres = artist0.genres;
-                artistsNetwork.popularity = artist0.popularity;
-                artistsNetwork.related_artists = {};
-
-                artists.add(artist0.name);
-                node_obj.push({
-                    "id": artist0.id,
-                    "caption": artist0.name
+                nodes_set.add(prevArtist.id)
+                nodes.push({
+                    "id": prevArtist.id,
+                    "name": prevArtist.name,
+                    "depth": 0
                 })
-                connectionDegree[artist0.name] = 0;
 
-                const artists1Response = await axios.get(`${apiUrl}/artists/${id}/related-artists`, config);
-                const artists1 = artists1Response.data;
-
-                for (let i = 0; i < 20; i++) {
-                    artistsNetwork.related_artists[i] = {};
-                    artistsNetwork.related_artists[i].id = artists1.artists[i].id;
-                    artistsNetwork.related_artists[i].name = artists1.artists[i].name;
-                    artistsNetwork.related_artists[i].genres = artists1.artists[i].genres;
-                    artistsNetwork.related_artists[i].popularity = artists1.artists[i].popularity;
-
-                    const artists2Response = await axios.get(`${apiUrl}/artists/${artists1.artists[i].id}/related-artists`, config);
-                    const artists2 = artists2Response.data;
-                    artistsNetwork.related_artists[i].related_artists = {};
-
-                    if (!artists.has(artists1.artists[i].name)) {
-                        artists.add(artists1.artists[i].name);
-                        node_obj.push({
-                            "id": artists1.artists[i].id,
-                            "caption": artists1.artists[i].name
-                        })
-                        source_target = [artist0.id, artists1.artists[i].id].sort()
-                        edge_obj.push({
+                const depth = 3;
+                for (let d=1; d <= depth; d++) {
+                    var newQueue = []
+                    for (let [prevArtistId, currArtist] of artist_queue){
+                        source_target = [prevArtistId, currArtist.id].sort()
+                        new_edge = {
                             "source": source_target[0],
                             "target": source_target[1]
-                        })
-                    }
-
-                    for (let j = 0; j < 19; j++) {
-                        artistsNetwork.related_artists[i].related_artists[j] = {};
-                        artistsNetwork.related_artists[i].related_artists[j].id = artists2.artists[j].id;
-                        artistsNetwork.related_artists[i].related_artists[j].name = artists2.artists[j].name;
-                        artistsNetwork.related_artists[i].related_artists[j].genres = artists2.artists[j].genres;
-                        artistsNetwork.related_artists[i].related_artists[j].popularity = artists2.artists[j].popularity;
-
-                        if (!artists.has(artists2.artists[j].name)) {
-                            artists.add(artists2.artists[j].name);
-                            node_obj.push({
-                                "id": artists2.artists[j].id,
-                                "caption": artists2.artists[j].name
-                            })
-                            source_target = [artists1.artists[i].id, artists2.artists[j].id].sort()
-                            edge_obj.push({
-                                "source": source_target[0],
-                                "target": source_target[1]
-                            })
+                        }
+                        new_node = {
+                            "id": currArtist.id,
+                            "name": currArtist.name,
+                            "depth": d
                         }
 
+                        if (!nodes_set.has(currArtist.id)) {
+                            nodes.push(new_node)
+                            nodes_set.add(currArtist.id)
+                            connectedArtistsResponse = await axios.get(`${apiUrl}/artists/${new_node.id}/related-artists`, config);
+                            connectedArtistsData = connectedArtistsResponse.data.artists;
+                            newQueue = newQueue.concat(connectedArtistsData.map(artist => [new_node.id, artist]))
+                        }
+                        edges.push(new_edge)
                     }
+                    artist_queue = newQueue.slice()
                 }
                 return {
-                    "nodes": node_obj,
-                    "edges": edge_obj
+                    "nodes": nodes,
+                    "edges": edges
                 }
             }
 
-            createArtistsNetwork("6jJ0s89eD6GaHleKKya26X").then(t => {
-                localStorage.setItem('network_data', JSON.stringify(t));
-                alchemy = new Alchemy({
-                    zoomControls: true,
-                    dataSource: t
-                })
-                // const retrievedData = JSON.parse(localStorage.getItem('network_data'));
-                // console.log(retrievedData)
-            })
-
+            // createArtistsNetwork("6jJ0s89eD6GaHleKKya26X").then(t => {
+            //     localStorage.setItem('network_data', JSON.stringify(t));
+            //     alchemy = new Alchemy({
+            //         nodeTypes:{"cluster": [0,1,2]},
+            //         nodeStyle: {
+            //             0: {
+            //                 "color": "#000067"
+            //             },
+            //             1: {
+            //                 "color": "#b4dcff"
+            //             },
+            //             2: {
+            //                 "color": "#ffffff"
+            //             }
+            //         },
+            //         dataSource: t
+            //     })
+            // })
             alchemy = new Alchemy({
-                dataSource: "data/charlize.json",
-                // graphHeight: function(){return 500},
-                initialZoom: 200,
-                // showEditor: true,
+                nodeTypes:{"depth": [0,1,2]},
+                nodeCaption: "name",
+                nodeStyle: {
+                    0: {
+                        "color": "#ffbe0b"
+                    },
+                    1: {
+                        "color": "#fb5607"
+                    },
+                    2: {
+                        "color": "#ff006e"
+                    },
+                    3: {
+                        "color": "#8338ec"
+                    },
+                    4: {
+                        "color": "#3a86ff"
+                    }
+                },
+                dataSource: 'data/artist_network.json',
                 // dataSource: JSON.parse(localStorage.getItem('network_data'))
             })
-            // var config = {
-            //     dataSource: 'data/charlize.json',
-            // };
-
-            
         </script>
     <div>
         Part 2
     </div>
   </body>
-</html>
+<!-- </html> -->
