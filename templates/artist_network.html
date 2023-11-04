@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+
+<head>
+    <style>
+        path.similarlink {
+            fill: none;
+            stroke: #777777;
+            stroke-width: 5px;
+        }
+        path.nonsimilarlink {
+            fill: none;
+            stroke: #10a100;
+            stroke-dasharray: 4;
+            stroke-width: 1px;
+        }
+
+        circle {
+            fill: #ccc;
+            stroke: #fff;
+            stroke: black;
+            stroke-width: 1.5px;
+        }
+        circle.low {
+            fill: #ece7f2;
+            stroke: #fff;
+            stroke: rgb(0, 0, 0);
+            stroke-width: 1.5px;
+        }
+        circle.medium {
+            fill: #a6bddb;
+            stroke: #fff;
+            stroke: rgb(0, 0, 0);
+            stroke-width: 1.5px;
+        }
+        circle.high {
+            fill: #2b8cbe;
+            stroke: #fff;
+            stroke: rgb(0, 0, 0);
+            stroke-width: 1.5px;
+        }
+        circle.pinned {
+            fill: #ff0000;
+            stroke: #fff;
+            stroke: rgb(0, 0, 0);
+            stroke-width: 1.5px;
+        }
+
+        text {
+            fill: #000;
+            font: 10px sans-serif;
+            pointer-events: none;
+        }
+    </style>
+    <meta charset="utf-8">
+    <title></title>
+</head>
+
+<body>
+    <!-- <script type="text/javascript" src="../lib/d3.v5.min.js"></script> -->
+    <script src="https://d3js.org/d3.v5.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <input type="text" id="textInput" placeholder="Type something here...">
+    <p id="output"></p>
+    <script>
+        function updateVisualization() {
+            d3.select('svg').remove();
+            d3.csv("output.csv", function(d) {
+                return {
+                    source: d.x,
+                    target: d.y,
+                    value: +d.value
+                };
+            }).then(function(data) {
+                createForceLayout(data);
+            }).catch(function(error) {
+                console.error(error);
+            });
+        }
+
+        function createForceLayout(data) {
+            var nodes = {};
+
+            var links = data;
+
+            var nodes = {};
+
+            // compute the distinct nodes from the links.
+            links.forEach(function (link) {
+                link.source = nodes[link.source] || (nodes[link.source] = { name: link.source });
+                link.target = nodes[link.target] || (nodes[link.target] = { name: link.target });
+            });
+            // console.log(nodes)
+            // console.log(links)
+            var width = 1800,
+                height = 1400;
+
+            var force = d3.forceSimulation()
+                .nodes(d3.values(nodes))
+                .force("link", d3.forceLink(links).distance(100))
+                .force('center', d3.forceCenter(width / 2, height / 2))
+                .force("x", d3.forceX())
+                .force("y", d3.forceY())
+                .force("charge", d3.forceManyBody().strength(-250))
+                .alphaTarget(1)
+                .on("tick", tick);
+
+            var svg = d3.select("body").append("svg")
+                .attr("width", width)
+                .attr("height", height);
+
+            // add the links
+            var path = svg.append("g")
+                .selectAll("path")
+                .data(links)
+                .enter()
+                .append("path")
+                .attr("class", function (d) { return d.value == 0 ? "similarlink " : "nonsimilarlink"; });
+
+            // define the nodes
+            var node = svg.selectAll(".node")
+                .data(force.nodes())
+                .enter().append("g")
+                .attr("class", "node")
+                .call(d3.drag()
+                    .on("start", dragstarted)
+                    .on("drag", dragged)
+                    .on("end", dragended))
+                .on("dblclick", function(d) {
+                    d.pinned = false
+                    d.fx = null
+                    d.fy = null
+                    force.restart();
+                    d3.select(this).select("circle").attr("class", function(d) {
+                        if (d.weight <= 3) {
+                        return "low"
+                        } else if (d.weight <= 6) {
+                            return "medium"
+                        } else {
+                            return "high"
+                        }
+                    })
+                    console.log(d)
+                });
+                    
+            node.attr("r", function(d) {
+                d.weight = links.filter(function(l) {
+                    return l.source.name == d.name || l.target.name == d.name
+                }).length;
+                var minRadius = 10;
+                return minRadius + (d.weight * 100);
+            });
+
+            for (var nodeName in nodes) {
+                nodes[nodeName].pinned = false;
+            }
+
+            // add the nodes
+            node.append("circle")
+                .attr("id", function (d) {
+                    return (d.name.replace(/\s+/g, '').toLowerCase());
+                })
+                .attr("r", function(d) {
+                    d.weight = links.filter(function(l) {
+                    return l.source.name == d.name || l.target.name == d.name
+                    }).length;
+                    var minRadius = 5;
+                    return minRadius + (1.5 * d.weight);
+                })
+                .attr("class", function(d) {
+                    if (d.weight <= 3) {
+                        return "low"
+                    } else if (d.weight <= 15) {
+                        return "medium"
+                    } else {
+                        return "high"
+                    }
+                });
+
+            node.append("text")
+                .attr("class", "label")
+                .attr("dy", function(d) {return - d.weight})
+                .attr("dx", 5)
+                .style("font-weight", "bold")
+                .text(function(d) { return d.name; });
+
+            console.log(nodes)
+
+            // add the curvy lines
+            function tick() {
+                path.attr("d", function (d) {
+                    var dx = d.target.x - d.source.x,
+                        dy = d.target.y - d.source.y,
+                        dr = Math.sqrt(dx * dx + dy * dy);
+                    return "M" +
+                        d.source.x + "," +
+                        d.source.y + "A" +
+                        dr + "," + dr + " 0 0,1 " +
+                        d.target.x + "," +
+                        d.target.y;
+                });
+
+                node.attr("transform", function (d) {
+                    return "translate(" + d.x + "," + d.y + ")";
+                });
+            };
+
+            function dragstarted(d) {
+                if (!d3.event.active) force.alphaTarget(0.3).restart();
+                if (d.pinned) {
+                    d.fx = d.x;
+                    d.fy = d.y;
+                }
+            };
+
+            function dragged(d) {
+                d.fx = d3.event.x;
+                d.fy = d3.event.y;
+            };
+
+            function dragended(d) {
+                if (!d3.event.active) force.alphaTarget(0);
+                if (!d.pinned){
+                    d.pinned = true
+                    d3.select(this).select("circle").attr("class", "pinned");
+                }
+                if (d.pinned == true) {
+                    d.fx = d.x;
+                    d.fy = d.y;
+                }
+                else {
+                    d.fx = null;
+                    d.fy = null;
+                    force.alphaTarget(0.3).restart();
+                }
+
+                console.log(d)
+            };
+        }
+
+        // Call updateVisualization on page load
+        updateVisualization();
+
+
+        // Select the input element using D3
+        var input = d3.select("#textInput");
+
+        // Bind the 'keydown' event to the input element
+        input.on("keydown", function() {
+            // Access the current event using d3.event
+            var event = d3.event;
+
+            // Check if the Enter key was pressed
+            if (event.key === 'Enter') {
+                // Prevent the default action
+                event.preventDefault();
+
+                // Get the value of the input field
+                var text = d3.select(this).node().value;
+
+                console.log("Enter pressed, input received: ", text); // Debugging line
+
+                // Update the output text
+                d3.select("#output").text("Showing related artists");
+
+                // Send the text to the server
+                fetch('/process-text', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ userInput: text }),
+                })
+                .then(response => {
+                    if (response.ok) {
+                        return response.json();
+                    }
+                    throw new Error('Network response was not ok.');
+                })
+                .then(data => {
+                    console.log('Success:', data);
+                })
+                .catch((error) => {
+                    console.error('Error:', error);
+                });
+
+                updateVisualization();
+            }
+        });
+
+
+
+
+        
+    </script>
+
+    <script>
+        // const axios = require('axios');
+
+        const cid = "84ffbde9b5764c61b02a9cfd5f686a0f";
+        const secret = "cd3e066799c547f391387ed5e42eca20";
+        const tokenUrl = 'https://accounts.spotify.com/api/token';
+        const apiUrl = 'https://api.spotify.com/v1';
+
+        async function getToken() {
+            const credentials = `${cid}:${secret}`;
+            const base64Credentials = btoa(credentials); // Use btoa for base64 encoding
+
+            const config = {
+                headers: {
+                    'Authorization': `Basic ${base64Credentials}`,
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+            };
+
+            const data = 'grant_type=client_credentials';
+
+            const response = await axios.post(tokenUrl, data, config);
+            return response.data.access_token;
+        }
+
+        async function createArtistsNetwork(id) {
+            const token = await getToken();
+            const config = {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
+            };
+
+            const artistsNetwork = {};
+            const artists = new Set();
+            const edges = new Set();
+            const connectionDegree = {};
+
+            const artist0Response = await axios.get(`${apiUrl}/artists/${id}`, config);
+            const artist0 = artist0Response.data;
+
+            artistsNetwork.id = artist0.id;
+            artistsNetwork.name = artist0.name;
+            artistsNetwork.genres = artist0.genres;
+            artistsNetwork.popularity = artist0.popularity;
+            artistsNetwork.related_artists = {};
+
+            artists.add(artist0.name);
+            connectionDegree[artist0.name] = 0;
+
+            const artists1Response = await axios.get(`${apiUrl}/artists/${id}/related-artists`, config);
+            const artists1 = artists1Response.data;
+
+            for (let i = 0; i < 20; i++) {
+                artistsNetwork.related_artists[i] = {};
+                artistsNetwork.related_artists[i].id = artists1.artists[i].id;
+                artistsNetwork.related_artists[i].name = artists1.artists[i].name;
+                artistsNetwork.related_artists[i].genres = artists1.artists[i].genres;
+                artistsNetwork.related_artists[i].popularity = artists1.artists[i].popularity;
+
+                const artists2Response = await axios.get(`${apiUrl}/artists/${artists1.artists[i].id}/related-artists`, config);
+                const artists2 = artists2Response.data;
+                artistsNetwork.related_artists[i].related_artists = {};
+
+                artists.add(artists1.artists[i].name);
+                edges.add([artist0.name, artists1.artists[i].name].sort().join(','));
+
+                if (!connectionDegree[artists1.artists[i].name]) {
+                    connectionDegree[artists1.artists[i].name] = 1;
+                }
+
+                for (let j = 0; j < 19; j++) {
+                    artistsNetwork.related_artists[i].related_artists[j] = {};
+                    artistsNetwork.related_artists[i].related_artists[j].id = artists2.artists[j].id;
+                    artistsNetwork.related_artists[i].related_artists[j].name = artists2.artists[j].name;
+                    artistsNetwork.related_artists[i].related_artists[j].genres = artists2.artists[j].genres;
+                    artistsNetwork.related_artists[i].related_artists[j].popularity = artists2.artists[j].popularity;
+
+                    artists.add(artists2.artists[j].name);
+                    edges.add([artists1.artists[i].name, artists2.artists[j].name].sort().join(','));
+
+                    if (!connectionDegree[artists2.artists[j].name]) {
+                        connectionDegree[artists2.artists[j].name] = 2;
+                    }
+                }
+            }
+
+            return [artistsNetwork, Array.from(artists), Array.from(edges)];
+        }
+
+        // Call the createArtistsNetwork function with your desired artist ID.
+        createArtistsNetwork("6jJ0s89eD6GaHleKKya26X")
+        .then(([artistsNetwork, artists, edges]) => {
+            console.log(artistsNetwork);
+            console.log(artists);
+            console.log(edges);
+        })
+        .catch(error => {
+            console.error(error);
+        });
+
+
+        // d3.dsv(",", "output.csv", function (d) {
+        //     return {
+        //         source: d.x,
+        //         target: d.y,
+        //         value: +d.value
+        //     }
+        // }).then(function (data) {
+
+
+        //     var links = data;
+
+        //     var nodes = {};
+
+        //     // compute the distinct nodes from the links.
+        //     links.forEach(function (link) {
+        //         link.source = nodes[link.source] || (nodes[link.source] = { name: link.source });
+        //         link.target = nodes[link.target] || (nodes[link.target] = { name: link.target });
+        //     });
+        //     // console.log(nodes)
+        //     // console.log(links)
+        //     var width = 1800,
+        //         height = 1400;
+
+        //     var force = d3.forceSimulation()
+        //         .nodes(d3.values(nodes))
+        //         .force("link", d3.forceLink(links).distance(100))
+        //         .force('center', d3.forceCenter(width / 2, height / 2))
+        //         .force("x", d3.forceX())
+        //         .force("y", d3.forceY())
+        //         .force("charge", d3.forceManyBody().strength(-250))
+        //         .alphaTarget(1)
+        //         .on("tick", tick);
+
+        //     var svg = d3.select("body").append("svg")
+        //         .attr("width", width)
+        //         .attr("height", height);
+
+        //     // add the links
+        //     var path = svg.append("g")
+        //         .selectAll("path")
+        //         .data(links)
+        //         .enter()
+        //         .append("path")
+        //         .attr("class", function (d) { return d.value == 0 ? "similarlink " : "nonsimilarlink"; });
+
+        //     // define the nodes
+        //     var node = svg.selectAll(".node")
+        //         .data(force.nodes())
+        //         .enter().append("g")
+        //         .attr("class", "node")
+        //         .call(d3.drag()
+        //             .on("start", dragstarted)
+        //             .on("drag", dragged)
+        //             .on("end", dragended))
+        //         .on("dblclick", function(d) {
+        //             d.pinned = false
+        //             d.fx = null
+        //             d.fy = null
+        //             force.restart();
+        //             d3.select(this).select("circle").attr("class", function(d) {
+        //                 if (d.weight <= 3) {
+        //                 return "low"
+        //                 } else if (d.weight <= 6) {
+        //                     return "medium"
+        //                 } else {
+        //                     return "high"
+        //                 }
+        //             })
+        //             console.log(d)
+        //         });
+                    
+        //     node.attr("r", function(d) {
+        //         d.weight = links.filter(function(l) {
+        //             return l.source.name == d.name || l.target.name == d.name
+        //         }).length;
+        //         var minRadius = 10;
+        //         return minRadius + (d.weight * 100);
+        //     });
+
+        //     for (var nodeName in nodes) {
+        //         nodes[nodeName].pinned = false;
+        //     }
+
+        //     // add the nodes
+        //     node.append("circle")
+        //         .attr("id", function (d) {
+        //             return (d.name.replace(/\s+/g, '').toLowerCase());
+        //         })
+        //         .attr("r", function(d) {
+        //             d.weight = links.filter(function(l) {
+        //             return l.source.name == d.name || l.target.name == d.name
+        //             }).length;
+        //             var minRadius = 5;
+        //             return minRadius + (1.5 * d.weight);
+        //         })
+        //         .attr("class", function(d) {
+        //             if (d.weight <= 3) {
+        //                 return "low"
+        //             } else if (d.weight <= 15) {
+        //                 return "medium"
+        //             } else {
+        //                 return "high"
+        //             }
+        //         });
+
+        //     node.append("text")
+        //         .attr("class", "label")
+        //         .attr("dy", function(d) {return - d.weight})
+        //         .attr("dx", 5)
+        //         .style("font-weight", "bold")
+        //         .text(function(d) { return d.name; });
+
+        //     console.log(nodes)
+
+        //     // add the curvy lines
+        //     function tick() {
+        //         path.attr("d", function (d) {
+        //             var dx = d.target.x - d.source.x,
+        //                 dy = d.target.y - d.source.y,
+        //                 dr = Math.sqrt(dx * dx + dy * dy);
+        //             return "M" +
+        //                 d.source.x + "," +
+        //                 d.source.y + "A" +
+        //                 dr + "," + dr + " 0 0,1 " +
+        //                 d.target.x + "," +
+        //                 d.target.y;
+        //         });
+
+        //         node.attr("transform", function (d) {
+        //             return "translate(" + d.x + "," + d.y + ")";
+        //         });
+        //     };
+
+        //     function dragstarted(d) {
+        //         if (!d3.event.active) force.alphaTarget(0.3).restart();
+        //         if (d.pinned) {
+        //             d.fx = d.x;
+        //             d.fy = d.y;
+        //         }
+        //     };
+
+        //     function dragged(d) {
+        //         d.fx = d3.event.x;
+        //         d.fy = d3.event.y;
+        //     };
+
+        //     function dragended(d) {
+        //         if (!d3.event.active) force.alphaTarget(0);
+        //         if (!d.pinned){
+        //             d.pinned = true
+        //             d3.select(this).select("circle").attr("class", "pinned");
+        //         }
+        //         if (d.pinned == true) {
+        //             d.fx = d.x;
+        //             d.fy = d.y;
+        //         }
+        //         else {
+        //             d.fx = null;
+        //             d.fy = null;
+        //             force.alphaTarget(0.3).restart();
+        //         }
+
+        //         console.log(d)
+        //     };
+
+        // }).catch(function (error) {
+        //     console.log(error);
+        // });
+
+    </script>
+</body>
+
+</html>
