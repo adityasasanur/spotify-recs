@@ -7,141 +7,35 @@
     <script type="text/javascript" src="0.4.1/scripts/vendor.js"></script>
     <script type="text/javascript" src="0.4.1/alchemy.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-    <div>
-        Data Viz Project
-    </div>
+
     <div class="alchemy" id="alchemy"></div>
-        <script type="text/javascript">
-
-            const cid = "84ffbde9b5764c61b02a9cfd5f686a0f";
-            const secret = "cd3e066799c547f391387ed5e42eca20";
-            const tokenUrl = 'https://accounts.spotify.com/api/token';
-            const apiUrl = 'https://api.spotify.com/v1';
-
-            async function getToken() {
-                const credentials = `${cid}:${secret}`;
-                const base64Credentials = btoa(credentials); // Use btoa for base64 encoding
-
-                const config = {
-                    headers: {
-                        'Authorization': `Basic ${base64Credentials}`,
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                    },
-                };
-
-                const data = 'grant_type=client_credentials';
-
-                const response = await axios.post(tokenUrl, data, config);
-                return response.data.access_token;
-            }
-
-            async function createArtistsNetwork(id) {
-                const token = await getToken();
-                const config = {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                    },
-                };
-
-                const nodes = [];
-                const nodes_set = new Set();
-                const edges = [];
-                const edges_set = new Set();
-                
-                const initialArtistResponse = await axios.get(`${apiUrl}/artists/${id}`, config);
-                const prevArtist = initialArtistResponse.data;
-                const artistQueueResponse = await axios.get(`${apiUrl}/artists/${id}/related-artists`, config);
-                const artist_data = artistQueueResponse.data.artists;
-                let artist_queue = artist_data.map(artist => [prevArtist.id, artist]);
-
-                nodes_set.add(prevArtist.id)
-                nodes.push({
-                    "id": prevArtist.id,
-                    "name": prevArtist.name,
-                    "depth": 0
-                })
-
-                const depth = 3;
-                for (let d=1; d <= depth; d++) {
-                    var newQueue = []
-                    for (let [prevArtistId, currArtist] of artist_queue){
-                        source_target = [prevArtistId, currArtist.id].sort()
-                        new_edge = {
-                            "source": source_target[0],
-                            "target": source_target[1]
-                        }
-                        new_node = {
-                            "id": currArtist.id,
-                            "name": currArtist.name,
-                            "depth": d
-                        }
-
-                        if (!nodes_set.has(currArtist.id)) {
-                            nodes.push(new_node)
-                            nodes_set.add(currArtist.id)
-                            connectedArtistsResponse = await axios.get(`${apiUrl}/artists/${new_node.id}/related-artists`, config);
-                            connectedArtistsData = connectedArtistsResponse.data.artists;
-                            newQueue = newQueue.concat(connectedArtistsData.map(artist => [new_node.id, artist]))
-                        }
-                        edges.push(new_edge)
-                    }
-                    artist_queue = newQueue.slice()
-                }
-                return {
-                    "nodes": nodes,
-                    "edges": edges
-                }
-            }
-
-            createArtistsNetwork("3tlXnStJ1fFhdScmQeLpuG").then(t => {
-                localStorage.setItem('network_data', JSON.stringify(t));
-            //     alchemy = new Alchemy({
-            //         nodeTypes:{"cluster": [0,1,2]},
-            //         nodeStyle: {
-            //             0: {
-            //                 "color": "#000067"
-            //             },
-            //             1: {
-            //                 "color": "#b4dcff"
-            //             },
-            //             2: {
-            //                 "color": "#ffffff"
-            //             }
-            //         },
-            //         dataSource: t
-            //     })
-            })
-            alchemy = new Alchemy({
-                nodeTypes:{"depth": [0,1,2,3,4]},
-                nodeCaption: "name",
-                nodeStyle: {
-                    0: {
-                        "color": "#ffbe0b",
-                        "radius": 20
-                    },
-                    1: {
-                        "color": "#fb5607",
-                        "radius": 15
-                    },
-                    2: {
-                        "color": "#ff006e",
-                        "radius": 10
-                    },
-                    3: {
-                        "color": "#8338ec",
-                        "radius": 7
-                    },
-                    4: {
-                        "color": "#3a86ff",
-                        "radius": 5
-                    }
+    <script type="text/javascript">
+        alchemy = new Alchemy({
+            nodeTypes:{"depth": [0,1,2,3,4]},
+            nodeCaption: "name",
+            nodeStyle: {
+                0: {
+                    "color": "#ffbe0b",
+                    "radius": 20
                 },
-                dataSource: 'data/artist_network.json',
-                // dataSource: JSON.parse(localStorage.getItem('network_data'))
-            })
-        </script>
-    <div>
-        Part 2
-    </div>
+                1: {
+                    "color": "#fb5607",
+                    "radius": 15
+                },
+                2: {
+                    "color": "#ff006e",
+                    "radius": 10
+                },
+                3: {
+                    "color": "#8338ec",
+                    "radius": 7
+                },
+                4: {
+                    "color": "#3a86ff",
+                    "radius": 5
+                }
+            },
+            dataSource: 'data/artist_network.json',
+        })
+    </script>
   </body>
-<!-- </html> -->
