@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<head>
+    <link rel="stylesheet" href="0.4.1/styles/vendor.css">
+    <link rel="stylesheet" href="0.4.1/alchemy.css">
+    <link rel="stylesheet" href="0.4.1/alchemy.min.css">
+</head>
+<body>
+    <script src="0.4.1/scripts/vendor.js"></script>
+    <script src="0.4.1/alchemy.js"></script>
+    <script src="0.4.1/alchemy.min.js"></script>
+
+    <div class="alchemy" id="alchemy"></div>
+    <script>
+        alchemy.begin({
+            dataSource: 'data/artist_network.json',
+            nodeTypes:{"depth": [0,1,2,3,4]},
+            nodeCaption: "name",
+            // showControlDash: true,
+            showEditor: true,
+            // search: true,
+            // removeElement: true,
+            // zoomControls: true,
+            nodeStyle: {
+                0: {
+                    "color": "#ffbe0b",
+                    "radius": 20
+                },
+                1: {
+                    "color": "#fb5607",
+                    "radius": 15
+                },
+                2: {
+                    "color": "#ff006e",
+                    "radius": 10
+                },
+                3: {
+                    "color": "#8338ec",
+                    "radius": 7
+                },
+                4: {
+                    "color": "#3a86ff",
+                    "radius": 5
+                }
+            },
+        })
+    </script>
+  </body>
