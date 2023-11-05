@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<head>
+    <link rel="stylesheet" type="text/css" href="0.4.1/styles/vendor.css">
+    <link rel="stylesheet" href="0.4.1/alchemy.css">
+</head>
+<body>
+    <script type="text/javascript" src="0.4.1/scripts/vendor.js"></script>
+    <script type="text/javascript" src="0.4.1/alchemy.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+
+    <input type="text" id="textInput" placeholder="I only want to see...">
+    <button id="resetButton">Reset Graph</button>
+
+
+    <div class="alchemy" id="alchemy"></div>
+    <script type="text/javascript">
+        alchemy = new Alchemy({
+            nodeTypes:{"depth": [0,1,2,3,4]},
+            nodeCaption: "name",
+            nodeStyle: {
+                0: {
+                    "color": "#ffbe0b",
+                    "radius": 20
+                },
+                1: {
+                    "color": "#fb5607",
+                    "radius": 15
+                },
+                2: {
+                    "color": "#ff006e",
+                    "radius": 10
+                },
+                3: {
+                    "color": "#8338ec",
+                    "radius": 7
+                },
+                4: {
+                    "color": "#3a86ff",
+                    "radius": 5
+                }
+            },
+            dataSource: 'data/artist_network.json',
+        });
+
+        document.addEventListener('DOMContentLoaded', function() {
+            var input = document.getElementById('textInput');
+            input.addEventListener('keypress', function(event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    var dataToSend = { text: input.value };
+
+                    axios.post('http://localhost:8000/endpoint', dataToSend)
+                        .then(function (response) {
+                            // handle success
+                            console.log(response.data);
+                            // document.getElementById('output').textContent = response.data;
+
+                            // Assuming Alchemy has a method to update its data source:
+                            alchemy = new Alchemy({
+                                nodeTypes:{"depth": [0,1,2,3,4]},
+                                nodeCaption: "name",
+                                nodeStyle: {
+                                    0: {
+                                        "color": "#ffbe0b",
+                                        "radius": 20
+                                    },
+                                    1: {
+                                        "color": "#fb5607",
+                                        "radius": 15
+                                    },
+                                    2: {
+                                        "color": "#ff006e",
+                                        "radius": 10
+                                    },
+                                    3: {
+                                        "color": "#8338ec",
+                                        "radius": 7
+                                    },
+                                    4: {
+                                        "color": "#3a86ff",
+                                        "radius": 5
+                                    }
+                                },
+                                dataSource: 'data/artist_network_filtered.json',
+                            });
+                        })
+                        .catch(function (error) {
+                            // handle error
+                            console.log(error);
+                        });
+                }
+            });
+        });
+
+
+        document.addEventListener('DOMContentLoaded', function() {
+            var resetButton = document.getElementById('resetButton');
+            resetButton.addEventListener('click', function() {
+                alchemy = new Alchemy({
+                    nodeTypes:{"depth": [0,1,2,3,4]},
+                    nodeCaption: "name",
+                    nodeStyle: {
+                        0: {
+                            "color": "#ffbe0b",
+                            "radius": 20
+                        },
+                        1: {
+                            "color": "#fb5607",
+                            "radius": 15
+                        },
+                        2: {
+                            "color": "#ff006e",
+                            "radius": 10
+                        },
+                        3: {
+                            "color": "#8338ec",
+                            "radius": 7
+                        },
+                        4: {
+                            "color": "#3a86ff",
+                            "radius": 5
+                        }
+                    },
+                    dataSource: 'data/artist_network.json',
+                    });
+            });
+        });
+
+    </script>
+  </body>
