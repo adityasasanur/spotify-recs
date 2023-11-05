@@ -4,13 +4,16 @@ from sentence_transformers import SentenceTransformer, util
 
 class UserPreferenceEngine():
     def __init__(self, artist_bio):
-        openai.api_key = "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"
+        openai.api_key = "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"
         self.sentence_encoder = SentenceTransformer('multi-qa-mpnet-base-dot-v1')
         self.artist_bio = pd.read_csv(artist_bio).set_index('artist').to_dict()['highlights']
         
         self.artist_highlights_embedding = dict()
         for artist in self.artist_bio:
-            self.artist_highlights_embedding[artist] = self.sentence_encoder.encode(self.artist_bio[artist])
+            try:
+                self.artist_highlights_embedding[artist] = self.sentence_encoder.encode(self.artist_bio[artist])
+            except:
+                self.artist_highlights_embedding[artist] = self.sentence_encoder.encode(" ")
         
     def get_ranked_artists(self, user_input):
         """
