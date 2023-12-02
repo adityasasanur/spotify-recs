@@ -1,6 +1,7 @@
 import os
 import requests
 import openai
+from openai import OpenAI
 import base64
 import json
 import csv
@@ -116,7 +117,8 @@ def get_wikipedia_intro(artist_name):
     
 def collect_artist_bio(artist_network):
     nodes = artist_network['nodes']
-    openai.api_key = "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"
+    # openai.api_key = "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"
+    client = OpenAI(api_key="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")
     system_prompt = """
     I will provide you with bio/info of a musician and I need you to extract the highlights from the bio. My goal is to compare the extracted highlights with the user's input about their preference over musicians so that I can rank the musicians by the similarity between the extracted highlights and users' inputs.
     Please separate the highlights by semicolons. Output at most 5 highlights. Keep each hight short. Prioritize highlights that users care about the most. Focus on high-level information about the musician. Avoid using full sentences."""
@@ -137,15 +139,14 @@ def collect_artist_bio(artist_network):
                 continue
             else:
                 bio = get_wikipedia_intro(artist)   
-                response = openai.ChatCompletion.create(
+                response = client.chat.completions.create(
                     model="gpt-4",
                     messages=[
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": bio}
                     ]
                 )
-                print(response["choices"][0]["message"]["content"])
-                writer.writerow({'artist': artist, 'intro': get_wikipedia_intro(artist), 'highlights': response["choices"][0]["message"]["content"]})
+                writer.writerow({'artist': artist, 'intro': get_wikipedia_intro(artist), 'highlights': response.choices[0].message.content})
             
             
         
@@ -232,12 +233,9 @@ def main():
     print(f'Loading Artist Network for {id} at depth {depth}....   (This might take a while)')
 
     # check if data/artist_network.json exists
-    if os.path.exists('data/artist_network.json'):
-        ret = json.load(open('data/artist_network.json'))
-    else:
-        ret = createArtistsNetwork(id, depth)
-        with open("data/artist_network.json", "w") as f:
-            json.dump(ret, f, indent=4)
+    ret = createArtistsNetwork(id, depth)
+    with open("data/artist_network.json", "w") as f:
+        json.dump(ret, f, indent=4)
     
     if not os.path.exists('data/artistinfo.csv'):
         collect_artist_bio(ret)
