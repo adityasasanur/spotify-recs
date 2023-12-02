@@ -116,7 +116,7 @@ def get_wikipedia_intro(artist_name):
     
 def collect_artist_bio(artist_network):
     nodes = artist_network['nodes']
-    openai.api_key = "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"
+    openai.api_key = "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"
     system_prompt = """
     I will provide you with bio/info of a musician and I need you to extract the highlights from the bio. My goal is to compare the extracted highlights with the user's input about their preference over musicians so that I can rank the musicians by the similarity between the extracted highlights and users' inputs.
     Please separate the highlights by semicolons. Output at most 5 highlights. Keep each hight short. Prioritize highlights that users care about the most. Focus on high-level information about the musician. Avoid using full sentences."""
