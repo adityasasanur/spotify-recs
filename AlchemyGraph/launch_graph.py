@@ -167,7 +167,7 @@ def artist_network():
     try:
         return send_from_directory('data', 'artist_network.json')
     except FileNotFoundError:
-        return jsonify({"error": "File not found"}), 
+        return jsonify({"error": "File not found"}), 404
     
 @app.route('/data/artist_network_filtered.json')
 def artist_network_filtered():
@@ -239,11 +239,11 @@ def main():
         with open("data/artist_network.json", "w") as f:
             json.dump(ret, f, indent=4)
     
-    if not os.path.exists('data/artistinfo.json'):
+    if not os.path.exists('data/artistinfo.csv'):
         collect_artist_bio(ret)
         
     print("done!")
-    Timer(10, webbrowser.open('http://localhost:8000/')).start()
+    # Timer(10, webbrowser.open('http://localhost:8000/')).start()
     app.run(debug=True, port=8000)
 
 if __name__ == "__main__":
