@@ -112,16 +112,18 @@ def get_wikipedia_intro(artist_name):
     
 def collect_artist_bio(artist_network):
     nodes = artist_network['nodes']
-    client = OpenAI(api_key="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")
+    client = OpenAI(api_key="YOUR_API_KEY")
     system_prompt = """
     I will provide you with bio/info of a musician and I need you to extract the highlights from the bio. My goal is to compare the extracted highlights with the user's input about their preference over musicians so that I can rank the musicians by the similarity between the extracted highlights and users' inputs.
     Please separate the highlights by semicolons. Output at most 5 highlights. Keep each hight short. Prioritize highlights that users care about the most. Focus on high-level information about the musician. Avoid using full sentences."""
     
     # read csv file to pd
-    artist_info = pd.read_csv('data/artistinfo.csv')
-        
+    if os.path.exists('data/artistinfo.csv'):
+        artist_info = pd.read_csv('data/artistinfo.csv')
+    else:
+        artist_info = pd.DataFrame(columns=['artist', 'intro', 'highlights'])
     
-    with open('data/artistinfo_1.csv', 'a', newline='') as csvfile:
+    with open('data/artistinfo.csv', 'a', newline='') as csvfile:
         fieldnames = ['artist', 'intro', 'highlights']
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
 
@@ -132,6 +134,7 @@ def collect_artist_bio(artist_network):
             if artist in artist_info['artist'].values:
                 continue
             else:
+                print("Processing bio for " + artist)
                 bio = get_wikipedia_intro(artist)   
                 response = client.chat.completions.create(
                     model="gpt-4",
@@ -141,11 +144,70 @@ def collect_artist_bio(artist_network):
                     ]
                 )
                 writer.writerow({'artist': artist, 'intro': get_wikipedia_intro(artist), 'highlights': response.choices[0].message.content})
+
+def keep_top_k_artists(preferences, k):
+    # keep top k artists in artist_network_df
+    # top_k_artists = preferences[:k]
+    # top_k_artists = [artist[0] for artist in top_k_artists]
+    artist_network_dict = json.load(open('data/artist_network.json'))
+    nodes = artist_network_dict['nodes']
+    all_artists = set([node['name'] for node in nodes])
+    valid_preferences = []
+    for name, similarity in preferences:
+        if name in all_artists:
+            valid_preferences.append((name, similarity))
+    top_k_artists = valid_preferences[:k]
+    top_k_artists = [artist[0] for artist in top_k_artists]
+    
+    id_to_name = dict()
+    for node in nodes:
+        id_to_name[node['id']] = node['name']
+    id_to_depth = dict()
+    for node in nodes:
+        id_to_depth[node['id']] = node['depth']
+    
+    nodes_filtered = []
+    artist_ids_filtered = []
+    for node in nodes:
+        if node['name'] in top_k_artists:
+            nodes_filtered.append(node)
+            artist_ids_filtered.append(node['id'])
+    edges_filtered = []
+    for edge in artist_network_dict['edges']:
+        if edge['source'] in artist_ids_filtered or edge['target'] in artist_ids_filtered:
+            edges_filtered.append(edge)
+            if edge['source'] not in artist_ids_filtered:
+                nodes_filtered.append({'id': edge['source'], 'name': id_to_name[edge['source']], 'depth': id_to_depth[edge['source']]})
+            if edge['target'] not in artist_ids_filtered:
+                nodes_filtered.append({'id': edge['target'], 'name': id_to_name[edge['target']], 'depth': id_to_depth[edge['target']]})
+                
+    
+    
+    json.dump({'nodes': nodes_filtered, 'edges': edges_filtered}, open('data/artist_network_filtered.json', 'w'))
             
             
         
     
 app = Flask(__name__)
+
+if len(sys.argv) != 3:
+    raise ValueError("Usage: python launch_graph.py <id> <depth>")
+    
+id = sys.argv[1]
+depth = int(sys.argv[2])
+print(f'Loading Artist Network for {id} at depth {depth}....   (This might take a while)')
+
+# check if data/artist_network.json exists
+ret = createArtistsNetwork(id, depth)
+
+if not os.path.exists('data'):
+    os.makedirs('data')
+with open("data/artist_network.json", "w") as f:
+    json.dump(ret, f, indent=4)
+
+collect_artist_bio(ret)
+    
+print("done!")
 perference_engine = UserPreferenceEngine('data/artistinfo.csv')
 
 @app.route('/')
@@ -173,62 +235,9 @@ def filter_artists():
     user_input = request.json.get('text')
     
     preferences = perference_engine.get_ranked_artists(user_input)
-    keep_top_k_artists(preferences, 10)
+    keep_top_k_artists(preferences, 5)
     
     # Respond with a success message
     return jsonify({"status": "success", "message": "Text saved."})
 
-def keep_top_k_artists(preferences, k):
-    # keep top k artists in artist_network_df
-    top_k_artists = preferences[:k]
-    top_k_artists = [artist[0] for artist in top_k_artists]
-    artist_network_dict = json.load(open('data/artist_network.json'))
-    nodes = artist_network_dict['nodes']
-    id_to_name = dict()
-    for node in nodes:
-        id_to_name[node['id']] = node['name']
-    id_to_depth = dict()
-    for node in nodes:
-        id_to_depth[node['id']] = node['depth']
-    
-    nodes_filtered = []
-    artist_ids_filtered = []
-    for node in nodes:
-        if node['name'] in top_k_artists:
-            nodes_filtered.append(node)
-            artist_ids_filtered.append(node['id'])
-    edges_filtered = []
-    for edge in artist_network_dict['edges']:
-        if edge['source'] in artist_ids_filtered or edge['target'] in artist_ids_filtered:
-            edges_filtered.append(edge)
-            if edge['source'] not in artist_ids_filtered:
-                nodes_filtered.append({'id': edge['source'], 'name': id_to_name[edge['source']], 'depth': id_to_depth[edge['source']]})
-            if edge['target'] not in artist_ids_filtered:
-                nodes_filtered.append({'id': edge['target'], 'name': id_to_name[edge['target']], 'depth': id_to_depth[edge['target']]})
-                
-    
-    
-    json.dump({'nodes': nodes_filtered, 'edges': edges_filtered}, open('data/artist_network_filtered.json', 'w'))
-
-
-def main():
-    if len(sys.argv) != 3:
-        print("Usage: python launch_graph.py <id> <depth>")
-        return
-    id = sys.argv[1]
-    depth = int(sys.argv[2])
-    print(f'Loading Artist Network for {id} at depth {depth}....   (This might take a while)')
-
-    # check if data/artist_network.json exists
-    ret = createArtistsNetwork(id, depth)
-    with open("data/artist_network.json", "w") as f:
-        json.dump(ret, f, indent=4)
-    
-    if not os.path.exists('data/artistinfo.csv'):
-        collect_artist_bio(ret)
-        
-    print("done!")
-    app.run(debug=True, port=8000)
-
-if __name__ == "__main__":
-    main()
+app.run(debug=True, port=8000)
