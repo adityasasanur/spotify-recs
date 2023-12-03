@@ -4,7 +4,7 @@ from sentence_transformers import SentenceTransformer, util
 
 class UserPreferenceEngine():
     def __init__(self, artist_bio):
-        self.client = OpenAI(api_key="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")
+        self.client = OpenAI(api_key="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")
         self.sentence_encoder = SentenceTransformer('multi-qa-mpnet-base-dot-v1')
         self.artist_bio = pd.read_csv(artist_bio).set_index('artist').to_dict()['highlights']
         

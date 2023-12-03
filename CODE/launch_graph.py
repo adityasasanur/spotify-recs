@@ -1,16 +1,13 @@
-import os
 import requests
-import openai
+import os
 from openai import OpenAI
 import base64
 import json
 import csv
 import sys
-import webbrowser
 from collections import deque
-from threading import Timer
 import pandas as pd
-from flask import Flask, render_template, request, redirect, send_from_directory, jsonify
+from flask import Flask, render_template, request, send_from_directory, jsonify
 
 
 from user_preference_rank import UserPreferenceEngine
@@ -58,8 +55,6 @@ def createArtistsNetwork(id, depth):
         "depth": 0
     })
 
-    # for d in range(1, depth+1):
-    #     newQueue = []
     while artist_queue:
         prevArtistId, currArtist, d = artist_queue.pop()
         source_target = sorted([prevArtistId, currArtist["id"]])
@@ -117,8 +112,7 @@ def get_wikipedia_intro(artist_name):
     
 def collect_artist_bio(artist_network):
     nodes = artist_network['nodes']
-    # openai.api_key = "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"
-    client = OpenAI(api_key="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")
+    client = OpenAI(api_key="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")
     system_prompt = """
     I will provide you with bio/info of a musician and I need you to extract the highlights from the bio. My goal is to compare the extracted highlights with the user's input about their preference over musicians so that I can rank the musicians by the similarity between the extracted highlights and users' inputs.
     Please separate the highlights by semicolons. Output at most 5 highlights. Keep each hight short. Prioritize highlights that users care about the most. Focus on high-level information about the musician. Avoid using full sentences."""
@@ -158,11 +152,6 @@ perference_engine = UserPreferenceEngine('data/artistinfo.csv')
 def index():
     return render_template('page.html')
 
-# @app.route('/.csv')
-# def get_csv():
-#     return send_from_directory('./data', 'output_filtered.csv')
-
-
 @app.route('/data/artist_network.json')
 def artist_network():
     try:
@@ -181,9 +170,7 @@ def artist_network_filtered():
 user_inputs = []
 @app.route('/endpoint', methods=['POST'])
 def filter_artists():
-    # For demo purposes, print to console   
     user_input = request.json.get('text')
-    print(user_input)
     
     preferences = perference_engine.get_ranked_artists(user_input)
     keep_top_k_artists(preferences, 10)
@@ -241,7 +228,6 @@ def main():
         collect_artist_bio(ret)
         
     print("done!")
-    # Timer(10, webbrowser.open('http://localhost:8000/')).start()
     app.run(debug=True, port=8000)
 
 if __name__ == "__main__":
